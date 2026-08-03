@@ -1,0 +1,48 @@
+[versions]
+agp = "9.3.1"
+kotlin = "2.4.10"
+composeBom = "2026.06.01"
+coreKtx = "1.18.0"
+lifecycle = "2.10.0"
+activityCompose = "1.12.0"
+serialization = "1.9.0"
+webkit = "1.15.0"
+# APK rewriting and signing. apksig is versioned in lockstep with AGP.
+arsclib = "1.4.0"
+apksig = "9.3.1"
+junit = "4.13.2"
+composeScreenshot = "0.0.1-alpha16"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+
+arsclib = { group = "io.github.reandroid", name = "ARSCLib", version.ref = "arsclib" }
+apksig = { group = "com.android.tools.build", name = "apksig", version.ref = "apksig" }
+
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+# Supplies @PreviewTest, which marks a @Preview as a screenshot to render.
+screenshot-validation-junit-engine = { group = "com.android.tools.screenshot", name = "screenshot-validation-junit-engine", version.ref = "composeScreenshot" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Renders @Preview composables to PNGs via layoutlib, so README screenshots can be
+# produced without a device or emulator.
+compose-screenshot = { id = "com.android.compose.screenshot", version.ref = "composeScreenshot" }

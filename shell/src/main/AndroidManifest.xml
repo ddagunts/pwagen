@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Template manifest for a generated PWA.
+
+  pwagen rewrites the package name, android:label, version and the network
+  security policy here, and ADDS optional permissions for the capabilities the
+  user opted into.
+
+  The permission list below is the FLOOR, not the ceiling: INTERNET is all a
+  generated PWA gets unless you ask for more. A PWA generated without camera
+  access has no CAMERA permission in its manifest at all, rather than a
+  declared-but-unused one. Adding on demand rather than stripping from a
+  superset means the restrictive outcome is what happens when nothing goes out
+  of its way to change it.
+
+  MainActivity is named fully-qualified on purpose: it must resolve no matter
+  what the manifest package is rewritten to, which is what lets classes.dex stay
+  byte-identical across every generated APK.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="pwagen app"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Pwagen.Shell"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/nsc_system">
+
+        <!--
+          Stops the WebView from reporting usage metrics to Google. WebView reads
+          this at startup and there is no runtime equivalent, so it is declared
+          rather than offered as a setting: a generated app is a window onto one
+          site, and there is no version of that where phoning home is wanted.
+        -->
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
+
+        <activity
+            android:name="dev.pwagen.shell.MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density|fontScale"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

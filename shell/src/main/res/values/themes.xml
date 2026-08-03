@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Chromeless by design: no action bar, and the system bars are drawn behind
+      the WebView so the page's own theme colour carries the whole surface.
+      MainActivity tints the bars from PwaConfig.themeColor at runtime.
+    -->
+    <style name="Theme.Pwagen.Shell" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

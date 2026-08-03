@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  User-installed CAs only: the system CA set is not trusted, so a certificate
+  from any public authority is rejected. HTTPS only. See nsc_system.xml.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

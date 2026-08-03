@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The generator declares NO android.permission.INTERNET, and must never gain it.
+
+  That absence is a load-bearing property of the project, not an oversight: the
+  tool that builds and signs your isolated apps cannot itself reach the network.
+  Icons and names come from local input only, which is why there is no web app
+  manifest fetching anywhere in this module.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Pwagen">
+
+        <activity
+            android:name=".GeneratorActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

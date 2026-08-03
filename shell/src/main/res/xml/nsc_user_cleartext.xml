@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  User-installed CAs only, plaintext http:// permitted. The system CA set is not
+  trusted. See nsc_system.xml.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
