@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/icon.png" alt="" width="120">
+
 # pwagen
 
 **Turn a website into a real Android app — one package, one UID, its own firewall identity.**
@@ -29,6 +31,25 @@ installable APK. That gives every site:
 - **Its own permissions** — camera, microphone and location granted and revoked per
   site in Android Settings, like any other app.
 - **Its own launcher icon, name and recents entry** — because it *is* its own app.
+
+## Screenshots
+
+<div align="center">
+
+<table>
+<tr>
+<td width="33%"><img src="docs/screenshots/app-list.png" alt="The generator's app list, showing three web apps with their derived package names"></td>
+<td width="33%"><img src="docs/screenshots/editor.png" alt="Editing a web app: site URL, launcher name, and the package name derived from the host"></td>
+<td width="33%"><img src="docs/screenshots/transport-security.png" alt="Transport security switches: plaintext HTTP, invalid certificates, and CA trust"></td>
+</tr>
+<tr>
+<td align="center"><b>Your web apps</b><br><sub>Each row is one package that will be installed separately.</sub></td>
+<td align="center"><b>Adding one</b><br><sub>The package name is derived from the host, so it is reproducible.</sub></td>
+<td align="center"><b>Transport security</b><br><sub>Hardened by default; each relaxation says what it costs.</sub></td>
+</tr>
+</table>
+
+</div>
 
 ## Install
 
