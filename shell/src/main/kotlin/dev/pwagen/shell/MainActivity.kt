@@ -23,11 +23,14 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Insets
+import android.graphics.Typeface
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
@@ -42,12 +45,16 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import dev.pwagen.config.Capabilities
 import dev.pwagen.config.DomainMatcher
 import dev.pwagen.config.NetworkSecurity
 import dev.pwagen.config.OffScopePolicy
 import dev.pwagen.config.PwaConfig
 import java.io.ByteArrayInputStream
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The entire runtime of a generated PWA: one WebView, chromeless, pointed at one
@@ -66,9 +73,36 @@ class MainActivity : Activity() {
     private lateinit var config: PwaConfig
     private lateinit var webView: WebView
 
+    /** Wraps the WebView; also what a blocked-request notice is attached to. */
+    private lateinit var root: FrameLayout
+
     /** Precompiled once: consulted on every request from a worker thread. */
     private lateinit var matcher: DomainMatcher
 
+    private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
+
+    /** Hosts silenced for good. A copy: the stored set must not be mutated. */
+    private val mutedHosts: MutableSet<String> by lazy {
+        prefs.getStringSet(MUTED_HOSTS, emptySet()).orEmpty().toMutableSet()
+    }
+
+    /**
+     * Hosts already reported this launch. Written from WebView worker threads,
+     * so it cannot be an ordinary set.
+     */
+    private val announcedHosts: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
+
+    private var blockNotice: View? = null
+
+    private var pullStartY = 0f
+    private var pullFromTop = false
+    private var pullArmed = false
+    private var pullIndicator: View? = null
+
+    // The touch listener below observes and never consumes, so the accessibility
+    // click path it normally warns about is still the WebView's own.
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -83,13 +117,21 @@ class MainActivity : Activity() {
             harden(settings, config.capabilities, config.network)
             webViewClient = ScopedWebViewClient()
             webChromeClient = CapabilityGatingChromeClient(config.capabilities)
+
+            // Observed, never consumed: returning false leaves every event to
+            // the WebView's own handling, so the page behaves exactly as before
+            // unless the drag turns out to be a pull from the very top.
+            setOnTouchListener { _, event ->
+                trackPull(event)
+                false
+            }
         }
 
         // The WebView is wrapped rather than set as the content view directly so
         // that the strip left for the system bars shows the site's colour rather
         // than a black gap. Padding the WebView itself would not do: it would
         // scroll its own background away with the page.
-        val root = FrameLayout(this).apply {
+        root = FrameLayout(this).apply {
             themeColor()?.let(::setBackgroundColor)
             addView(webView)
         }
@@ -128,6 +170,179 @@ class MainActivity : Activity() {
 
     private fun loadConfig(): PwaConfig =
         assets.open(PwaConfig.ASSET_PATH).bufferedReader().use { PwaConfig.decode(it.readText()) }
+
+    // ---------------------------------------------------------------------
+    // Blocked-request notices
+    // ---------------------------------------------------------------------
+
+    /**
+     * Reports a host the domain rules refused, unless it has been silenced.
+     *
+     * Called from a WebView worker thread, and a single page load can refuse
+     * dozens of requests to the same host, so the announcement is collapsed to
+     * once per host per launch before it ever reaches the main thread.
+     */
+    private fun announceBlock(host: String?) {
+        val name = host?.takeIf { it.isNotBlank() } ?: return
+        if (name in mutedHosts) return
+        if (!announcedHosts.add(name)) return
+
+        runOnUiThread { showBlockNotice(name) }
+    }
+
+    /**
+     * A one-line notice naming the refused host, with a way to silence it.
+     *
+     * Assembled from plain framework views rather than a Snackbar: the shell
+     * carries no Material dependency, and in the network-facing half of the
+     * project that is a constraint worth keeping rather than an inconvenience to
+     * work around.
+     */
+    private fun showBlockNotice(host: String) {
+        dismissBlockNotice()
+
+        val label = TextView(this).apply {
+            text = "Blocked request to $host"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f,
+            )
+        }
+
+        val notice = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(NOTICE_BACKGROUND)
+            setPadding(dp(16), dp(10), dp(4), dp(10))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM,
+            )
+            addView(label)
+            addView(noticeAction("Mute") { muteHost(host) })
+            addView(noticeAction("Dismiss") { dismissBlockNotice() })
+        }
+
+        root.addView(notice)
+        blockNotice = notice
+
+        // Left up, this would cover part of the page indefinitely — which is the
+        // pestering the mute button exists to stop, not something to introduce
+        // by another route.
+        notice.postDelayed({ if (blockNotice === notice) dismissBlockNotice() }, NOTICE_TIMEOUT_MS)
+    }
+
+    private fun noticeAction(caption: String, onClick: () -> Unit): TextView =
+        TextView(this).apply {
+            text = caption
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            isAllCaps = true
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            setOnClickListener { onClick() }
+        }
+
+    /** Silences [host] for good, across restarts of the generated app. */
+    private fun muteHost(host: String) {
+        mutedHosts.add(host)
+        // The set handed to SharedPreferences must not be the one that keeps
+        // being mutated: the stored instance is read back as-is, so sharing it
+        // would let later edits leak in without ever being committed.
+        prefs.edit().putStringSet(MUTED_HOSTS, HashSet(mutedHosts)).apply()
+        dismissBlockNotice()
+    }
+
+    private fun dismissBlockNotice() {
+        blockNotice?.let(root::removeView)
+        blockNotice = null
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    // ---------------------------------------------------------------------
+    // Pull to refresh
+    // ---------------------------------------------------------------------
+
+    /**
+     * Turns a downward drag that starts with the page already at its top into a
+     * reload.
+     *
+     * Hand-rolled rather than reached for: `SwipeRefreshLayout` would put an
+     * AndroidX dependency in the network-facing module, and the short dependency
+     * list there is worth more than the code it would have saved.
+     *
+     * The gesture is only claimed while the WebView has nowhere left to scroll
+     * upwards, and is abandoned the moment the page moves or a second finger
+     * arrives, so it cannot swallow a drag or a pinch the page wanted.
+     */
+    private fun trackPull(event: MotionEvent) {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                pullStartY = event.y
+                pullFromTop = webView.scrollY == 0
+                pullArmed = false
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (!pullFromTop) return
+                if (webView.scrollY != 0) {
+                    resetPull()
+                    return
+                }
+
+                val armed = event.y - pullStartY > dp(96)
+                if (armed == pullArmed) return
+
+                pullArmed = armed
+                if (armed) showPullIndicator() else hidePullIndicator()
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val reload = pullArmed
+                resetPull()
+                if (reload) webView.reload()
+            }
+
+            // A second finger means a pinch or a two-finger scroll, neither of
+            // which is a pull.
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> resetPull()
+        }
+    }
+
+    private fun showPullIndicator() {
+        if (pullIndicator != null) return
+
+        pullIndicator = TextView(this).apply {
+            text = "Release to refresh"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setBackgroundColor(NOTICE_BACKGROUND)
+            setPadding(dp(16), dp(10), dp(16), dp(10))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP,
+            )
+            root.addView(this)
+        }
+    }
+
+    private fun hidePullIndicator() {
+        pullIndicator?.let(root::removeView)
+        pullIndicator = null
+    }
+
+    private fun resetPull() {
+        pullArmed = false
+        pullFromTop = false
+        hidePullIndicator()
+    }
 
     private fun themeColor(): Int? =
         runCatching { Color.parseColor(config.themeColor) }.getOrNull()
@@ -255,6 +470,7 @@ class MainActivity : Activity() {
             if (matcher.allows(request.url.host)) return null
 
             Log.i(TAG, "Blocked by domain rules: ${request.url.host}")
+            if (config.domainRules.announceBlocks) announceBlock(request.url.host)
             return REFUSED()
         }
 
@@ -327,6 +543,13 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "pwagen"
+
+        const val PREFS = "pwagen"
+        const val MUTED_HOSTS = "mutedHosts"
+
+        /** Near-opaque neutral, so the notice reads over whatever the page draws. */
+        const val NOTICE_BACKGROUND = 0xF0202020.toInt()
+        const val NOTICE_TIMEOUT_MS = 10_000L
 
         /**
          * The response handed back for a request the domain rules refused.

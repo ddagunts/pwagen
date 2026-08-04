@@ -68,6 +68,19 @@ enum class DomainRuleMode {
 data class DomainRules(
     val mode: DomainRuleMode = DomainRuleMode.OFF,
     val patterns: List<String> = emptyList(),
+
+    /**
+     * Whether a refused request surfaces in the app instead of only in logcat.
+     *
+     * Off by default: a rule that is working correctly refuses things constantly,
+     * and a page whose analytics are blocked would otherwise talk about it
+     * forever. It earns its keep while a list is being tuned, which is when the
+     * question is usually "what did I forget to allow?".
+     *
+     * The generated app reports each host once and lets it be muted for good,
+     * so turning this on cannot degrade into a permanent nuisance.
+     */
+    val announceBlocks: Boolean = false,
 ) {
     companion object {
         /** Patterns covering [host] and everything beneath it. */

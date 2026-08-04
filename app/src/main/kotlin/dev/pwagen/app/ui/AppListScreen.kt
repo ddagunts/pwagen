@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.pwagen.config.DomainRuleMode
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,8 +81,8 @@ fun AppListScreen(
             TopAppBar(
                 title = { Text("pwagen") },
                 actions = {
-                    IconButton(onClick = onImportBackup) { Text("⤓", style = MaterialTheme.typography.titleLarge) }
-                    IconButton(onClick = onExportBackup) { Text("⤒", style = MaterialTheme.typography.titleLarge) }
+                    BarAction("⤓", onImportBackup)
+                    BarAction("⤒", onExportBackup)
                 },
             )
         },
@@ -121,6 +122,21 @@ fun AppListScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * A top-bar action, deliberately larger than the Material default.
+ *
+ * These are text glyphs rather than icons, and a glyph renders visually smaller
+ * than a 24dp icon set at the same nominal size — so the stock 48dp button left
+ * them looking like fine print in the corner of the screen, which is the worst
+ * place to make someone aim.
+ */
+@Composable
+private fun BarAction(glyph: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(56.dp)) {
+        Text(glyph, fontSize = 28.sp)
     }
 }
 

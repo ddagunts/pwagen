@@ -104,6 +104,10 @@ is still revocable afterwards in Android Settings:
 **Scope.** Links that leave the site open in your normal browser instead of loading
 inside the app, so unrelated browsing never lands under that app's UID.
 
+**Pull to refresh.** Dragging down with the page already at its top reloads it. The
+gesture is only claimed while the page has nowhere left to scroll and is abandoned the
+moment it moves or a second finger lands, so it cannot swallow a swipe the site wanted.
+
 **Full screen.** On by default: the system bars are hidden and the site gets the whole
 screen, with a swipe from the top edge bringing the status bar back. Turn it off and
 the bars stay put with the page held below them, tinted with the site's theme colour.
@@ -131,6 +135,13 @@ you first switch a site to allowlist mode.
 There are deliberately **no implicit rules**. An empty allowlist blocks the site's own
 requests too. What you see in the config is what is enforced, with no hidden
 exceptions to reason around.
+
+**Seeing what got blocked.** A rule that is working refuses things constantly, so by
+default refusals go only to logcat. Turn on *Announce blocked requests* while you are
+tuning a list and the app names each refused host the first time it comes up, with a
+**Mute** button that silences that host for good — so the answer to "what did I forget
+to allow?" does not cost you a page that complains forever. Muting is remembered
+inside the generated app; clearing its storage in Android Settings resets it.
 
 This sits *underneath* whatever per-app firewall you use rather than replacing it. A
 firewall sees the app's UID and can stop it reaching a host at all; these rules work

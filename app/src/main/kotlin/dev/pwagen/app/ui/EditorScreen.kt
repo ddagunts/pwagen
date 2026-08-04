@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -98,6 +99,9 @@ fun EditorScreen(
     var patterns by remember {
         mutableStateOf(initial?.config?.domainRules?.patterns.orEmpty().joinToString("\n"))
     }
+    var announceBlocks by remember {
+        mutableStateOf(initial?.config?.domainRules?.announceBlocks ?: false)
+    }
 
     val icon = pickedIcon ?: initial?.icon
     val packageName = initial?.config?.packageName ?: derivePackageName(url, discriminator)
@@ -108,7 +112,17 @@ fun EditorScreen(
             TopAppBar(
                 title = { Text(if (initial == null) "Add web app" else "Edit web app") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    // Sized up from the Material default: this is the only way
+                    // out of a screen that scrolls well past a screenful, so it
+                    // is worth more than the minimum tappable area.
+                    TextButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .heightIn(min = 56.dp),
+                    ) {
+                        Text("Back", style = MaterialTheme.typography.titleMedium)
+                    }
                 },
             )
         },
@@ -329,6 +343,15 @@ fun EditorScreen(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                 )
+
+                CapabilityToggle(
+                    "Announce blocked requests",
+                    announceBlocks,
+                    detail = "Names each refused host in the app the first time it " +
+                        "comes up, with a Mute button that silences it for good. " +
+                        "Clearing the app's storage in Android Settings brings the " +
+                        "muted ones back.",
+                ) { announceBlocks = it }
             }
 
             HorizontalDivider()
@@ -351,6 +374,7 @@ fun EditorScreen(
                                 patterns = patterns.lines()
                                     .map(String::trim)
                                     .filter(String::isNotEmpty),
+                                announceBlocks = announceBlocks,
                             ),
                             versionCode = initial?.config?.versionCode ?: 1,
                         ),
