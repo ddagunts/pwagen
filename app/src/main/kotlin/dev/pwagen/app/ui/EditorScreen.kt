@@ -82,6 +82,7 @@ fun EditorScreen(
     var label by remember { mutableStateOf(initial?.config?.label.orEmpty()) }
     var discriminator by remember { mutableStateOf("") }
     var themeColor by remember { mutableStateOf(initial?.config?.themeColor ?: "#101010") }
+    var fullscreen by remember { mutableStateOf(initial?.config?.fullscreen ?: true) }
     var capabilities by remember {
         mutableStateOf(initial?.config?.capabilities ?: Capabilities())
     }
@@ -175,6 +176,16 @@ fun EditorScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            CapabilityToggle(
+                "Full screen",
+                fullscreen,
+                detail = if (fullscreen) {
+                    "The status bar is hidden and the site uses the whole screen. Swipe from the top edge to bring the bar back."
+                } else {
+                    "The status bar stays visible and the site starts below it, so nothing on the page sits under it."
+                },
+            ) { fullscreen = it }
 
             HorizontalDivider()
 
@@ -332,6 +343,7 @@ fun EditorScreen(
                             scope = scopeOf(url),
                             offScopePolicy = offScope,
                             themeColor = themeColor.trim(),
+                            fullscreen = fullscreen,
                             capabilities = capabilities,
                             network = network,
                             domainRules = DomainRules(
@@ -416,6 +428,7 @@ private fun CapabilityToggle(
     title: String,
     checked: Boolean,
     caution: String? = null,
+    detail: String? = null,
     enabled: Boolean = true,
     onChange: (Boolean) -> Unit,
 ) {
@@ -438,6 +451,13 @@ private fun CapabilityToggle(
                     it,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
+                )
+            }
+            detail?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

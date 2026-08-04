@@ -22,12 +22,16 @@ import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Insets
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.SslErrorHandler
@@ -37,6 +41,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import dev.pwagen.config.Capabilities
 import dev.pwagen.config.DomainMatcher
 import dev.pwagen.config.NetworkSecurity
@@ -80,7 +85,17 @@ class MainActivity : Activity() {
             webViewClient = ScopedWebViewClient()
             webChromeClient = CapabilityGatingChromeClient(config.capabilities)
         }
-        setContentView(webView)
+
+        // The WebView is wrapped rather than set as the content view directly so
+        // that the strip left for the system bars shows the site's colour rather
+        // than a black gap. Padding the WebView itself would not do: it would
+        // scroll its own background away with the page.
+        val root = FrameLayout(this).apply {
+            themeColor()?.let(::setBackgroundColor)
+            addView(webView)
+        }
+        setContentView(root)
+        applyWindowFit(root)
 
         CookieManager.getInstance()
             .setAcceptThirdPartyCookies(webView, config.capabilities.thirdPartyCookies)
@@ -111,11 +126,74 @@ class MainActivity : Activity() {
     private fun loadConfig(): PwaConfig =
         assets.open(PwaConfig.ASSET_PATH).bufferedReader().use { PwaConfig.decode(it.readText()) }
 
+    private fun themeColor(): Int? =
+        runCatching { Color.parseColor(config.themeColor) }.getOrNull()
+
+    /**
+     * Decides who owns the strip of screen behind the system bars.
+     *
+     * Edge-to-edge is not optional from API 35 on: the window extends under the
+     * status bar no matter what the activity asks for. Left alone that puts the
+     * top of the page behind the bar, where taps go to the system and never
+     * reach the site — a band of the page that looks live and is not. So the app
+     * either hides the bars and genuinely uses the whole screen, or keeps them
+     * and holds the page clear of them.
+     */
+    private fun applyWindowFit(root: View) {
+        // Taking the decor out of the framework's hands is what makes the two
+        // modes behave the same way on every API level this runs on, instead of
+        // depending on whether the platform still honours decor fitting.
+        window.setDecorFitsSystemWindows(false)
+
+        if (config.fullscreen) {
+            window.insetsController?.apply {
+                hide(WindowInsets.Type.systemBars())
+                // A hidden bar has to stay reachable: a generated app is
+                // chromeless, so the swipe is the only way back to the clock,
+                // notifications, and on three-button devices the Back key.
+                systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+
+        root.setOnApplyWindowInsetsListener { view, insets ->
+            // The keyboard is padded for in both modes. Opting out of decor
+            // fitting also opts out of the framework's own IME resizing, so
+            // without this a focused input can sit under the keyboard.
+            val keyboard = insets.getInsets(WindowInsets.Type.ime()).bottom
+
+            // The cutout is folded in with the bars: on a device with a notch
+            // rather than a punch-hole, the status bar inset alone does not
+            // clear it in landscape.
+            val bars = if (config.fullscreen) {
+                Insets.NONE
+            } else {
+                insets.getInsets(
+                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+                )
+            }
+
+            view.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, keyboard))
+            insets
+        }
+    }
+
     /** Carries the site's own colour onto the system bars and the recents tile. */
     private fun applyThemeColor() {
-        val color = runCatching { Color.parseColor(config.themeColor) }.getOrNull() ?: return
+        val color = themeColor() ?: return
         window.statusBarColor = color
         window.navigationBarColor = color
+
+        // The bar icons are drawn over that colour whenever the bars are
+        // visible, so a light theme colour needs dark icons or the clock and
+        // battery disappear into it.
+        val lightBars = Color.luminance(color) > 0.5f
+        val appearance = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        window.insetsController?.setSystemBarsAppearance(
+            if (lightBars) appearance else 0,
+            appearance,
+        )
 
         val description = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityManager.TaskDescription.Builder()

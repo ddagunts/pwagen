@@ -104,6 +104,12 @@ is still revocable afterwards in Android Settings:
 **Scope.** Links that leave the site open in your normal browser instead of loading
 inside the app, so unrelated browsing never lands under that app's UID.
 
+**Full screen.** On by default: the system bars are hidden and the site gets the whole
+screen, with a swipe from the top edge bringing the status bar back. Turn it off and
+the bars stay put with the page held below them, tinted with the site's theme colour.
+There is no in-between state, because a page drawn under a *visible* status bar has a
+band across its top that looks live but sends every tap to the system instead.
+
 ## Domain rules
 
 Each site can carry its own allowlist or blocklist, applied to **every** request it

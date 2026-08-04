@@ -163,6 +163,17 @@ data class PwaConfig(
     /** `#rrggbb`, applied to the status bar and the task switcher tile. */
     val themeColor: String = "#000000",
 
+    /**
+     * Whether the app hides the system bars and takes the whole screen.
+     *
+     * Edge-to-edge is mandatory from API 35, so the window extends under the
+     * status bar whatever this says. What it decides is who owns that strip:
+     * true hides the bars so the page can use it, false holds the page below
+     * them. There is no third option, because leaving the page under a visible
+     * status bar puts a band of the site where taps reach the system instead.
+     */
+    val fullscreen: Boolean = true,
+
     val capabilities: Capabilities = Capabilities(),
 
     /**
