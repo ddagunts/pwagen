@@ -74,7 +74,6 @@ class MainActivity : Activity() {
 
         config = loadConfig()
         matcher = DomainMatcher.of(config.domainRules)
-        applyThemeColor()
 
         webView = WebView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -94,7 +93,11 @@ class MainActivity : Activity() {
             themeColor()?.let(::setBackgroundColor)
             addView(webView)
         }
+        // Both of these reach through the window for its decor view, which does
+        // not exist until setContentView has installed it. Asking any earlier
+        // throws inside PhoneWindow, so the order here is load-bearing.
         setContentView(root)
+        applyThemeColor()
         applyWindowFit(root)
 
         CookieManager.getInstance()
@@ -144,17 +147,7 @@ class MainActivity : Activity() {
         // modes behave the same way on every API level this runs on, instead of
         // depending on whether the platform still honours decor fitting.
         window.setDecorFitsSystemWindows(false)
-
-        if (config.fullscreen) {
-            window.insetsController?.apply {
-                hide(WindowInsets.Type.systemBars())
-                // A hidden bar has to stay reachable: a generated app is
-                // chromeless, so the swipe is the only way back to the clock,
-                // notifications, and on three-button devices the Back key.
-                systemBarsBehavior =
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            }
-        }
+        applySystemBars()
 
         root.setOnApplyWindowInsetsListener { view, insets ->
             // The keyboard is padded for in both modes. Opting out of decor
@@ -178,24 +171,51 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Carries the site's own colour onto the system bars and the recents tile. */
+    /**
+     * Hides or reveals the system bars, and picks the icon colour drawn on them.
+     *
+     * The window's insets controller is only wired up once the window has been
+     * attached, so this runs again on every focus gain rather than only at
+     * creation. That second call is not merely defensive: a bar the user swiped
+     * in transiently has to be put back afterwards, and returning from another
+     * app is where that is noticed.
+     */
+    private fun applySystemBars() {
+        val controller = window.insetsController ?: return
+
+        if (config.fullscreen) {
+            controller.hide(WindowInsets.Type.systemBars())
+            // A hidden bar has to stay reachable: a generated app is chromeless,
+            // so the swipe is the only way back to the clock, notifications, and
+            // on three-button devices the Back key.
+            controller.systemBarsBehavior =
+                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+
+        // The bar icons are drawn over the theme colour whenever the bars are
+        // visible, so a light theme colour needs dark icons or the clock and
+        // battery disappear into it.
+        val color = themeColor() ?: return
+        val appearance = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        controller.setSystemBarsAppearance(
+            if (Color.luminance(color) > 0.5f) appearance else 0,
+            appearance,
+        )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applySystemBars()
+    }
+
+    /** Carries the site's own colour onto the bars and the recents tile. */
     private fun applyThemeColor() {
         val color = themeColor() ?: return
         window.statusBarColor = color
         window.navigationBarColor = color
 
-        // The bar icons are drawn over that colour whenever the bars are
-        // visible, so a light theme colour needs dark icons or the clock and
-        // battery disappear into it.
-        val lightBars = Color.luminance(color) > 0.5f
-        val appearance = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
-            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-        window.insetsController?.setSystemBarsAppearance(
-            if (lightBars) appearance else 0,
-            appearance,
-        )
-
-        val description = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val description =if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityManager.TaskDescription.Builder()
                 .setLabel(config.label)
                 .setPrimaryColor(color)
