@@ -84,6 +84,9 @@ fun EditorScreen(
     var discriminator by remember { mutableStateOf("") }
     var themeColor by remember { mutableStateOf(initial?.config?.themeColor ?: "#101010") }
     var fullscreen by remember { mutableStateOf(initial?.config?.fullscreen ?: true) }
+    var drawUnderCutout by remember {
+        mutableStateOf(initial?.config?.drawUnderCutout ?: false)
+    }
     var capabilities by remember {
         mutableStateOf(initial?.config?.capabilities ?: Capabilities())
     }
@@ -200,6 +203,19 @@ fun EditorScreen(
                     "The status bar stays visible and the site starts below it, so nothing on the page sits under it."
                 },
             ) { fullscreen = it }
+
+            if (fullscreen) {
+                CapabilityToggle(
+                    "Draw under the camera cutout",
+                    drawUnderCutout,
+                    caution = "Anything the site puts up there sits behind the lens"
+                        .takeIf { drawUnderCutout },
+                    detail = "Off, the page stops below the camera and the strip " +
+                        "is filled with the theme colour. Hiding the bars does not " +
+                        "move the camera, and unlike the status bar there is no " +
+                        "swipe that brings the covered part back.",
+                ) { drawUnderCutout = it }
+            }
 
             HorizontalDivider()
 
@@ -367,6 +383,7 @@ fun EditorScreen(
                             offScopePolicy = offScope,
                             themeColor = themeColor.trim(),
                             fullscreen = fullscreen,
+                            drawUnderCutout = drawUnderCutout,
                             capabilities = capabilities,
                             network = network,
                             domainRules = DomainRules(

@@ -174,6 +174,16 @@ data class PwaConfig(
      */
     val fullscreen: Boolean = true,
 
+    /**
+     * Whether a full-screen app may also draw into the display cutout.
+     *
+     * Only consulted when [fullscreen] is set, and off by default: hiding the
+     * system bars does not move the camera, so content left in that strip sits
+     * behind the lens with no swipe to recover it. Worth turning on for a site
+     * whose top edge is empty anyway, and for nothing else.
+     */
+    val drawUnderCutout: Boolean = false,
+
     val capabilities: Capabilities = Capabilities(),
 
     /**

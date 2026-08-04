@@ -35,6 +35,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.SslErrorHandler
@@ -47,6 +48,8 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import dev.pwagen.config.Capabilities
 import dev.pwagen.config.DomainMatcher
 import dev.pwagen.config.NetworkSecurity
@@ -142,6 +145,17 @@ class MainActivity : Activity() {
         applyThemeColor()
         applyWindowFit(root)
 
+        // Predictive back is on by default for apps targeting API 35 and up, and
+        // when it is, the system routes Back through this dispatcher and never
+        // calls onBackPressed. Without the registration, Back would leave the app
+        // instead of walking the page's history.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                OnBackInvokedCallback { goBackOrExit() },
+            )
+        }
+
         CookieManager.getInstance()
             .setAcceptThirdPartyCookies(webView, config.capabilities.thirdPartyCookies)
 
@@ -163,10 +177,20 @@ class MainActivity : Activity() {
      * Back walks the page's own history first, and only leaves the app once
      * there is nothing left to go back to.
      */
-    @Suppress("DEPRECATION", "MissingSuperCall")
-    override fun onBackPressed() {
+    private fun goBackOrExit() {
         if (webView.canGoBack()) webView.goBack() else finish()
     }
+
+    /**
+     * The pre-API-33 delivery path for [goBackOrExit].
+     *
+     * Still reachable: this runs from API 30, and below 33 there is no back
+     * dispatcher to register with. From 33 the manifest opts into the predictive
+     * back callback and the system stops calling this entirely, which is why the
+     * registration in onCreate is not an alternative but the primary route.
+     */
+    @Suppress("DEPRECATION", "MissingSuperCall", "OVERRIDE_DEPRECATION")
+    override fun onBackPressed() = goBackOrExit()
 
     private fun loadConfig(): PwaConfig =
         assets.open(PwaConfig.ASSET_PATH).bufferedReader().use { PwaConfig.decode(it.readText()) }
@@ -357,11 +381,26 @@ class MainActivity : Activity() {
      * either hides the bars and genuinely uses the whole screen, or keeps them
      * and holds the page clear of them.
      */
+    // setDecorFitsSystemWindows is deprecated because edge-to-edge stopped being
+    // optional, which is only true from API 35. This runs from 30, where it is
+    // still the switch that decides whether the framework insets the content.
+    @Suppress("DEPRECATION")
     private fun applyWindowFit(root: View) {
         // Taking the decor out of the framework's hands is what makes the two
         // modes behave the same way on every API level this runs on, instead of
         // depending on whether the platform still honours decor fitting.
         window.setDecorFitsSystemWindows(false)
+
+        // Ask for the whole display, cutout included, and then pad it back out
+        // above. Left at the default, the platform letterboxes the cutout edge
+        // itself in some orientations and not others, with a black bar rather
+        // than the site's colour — so the app would look different in portrait
+        // and landscape for reasons no setting here explained.
+        window.attributes = window.attributes.apply {
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
+
         applySystemBars()
 
         root.setOnApplyWindowInsetsListener { view, insets ->
@@ -370,15 +409,26 @@ class MainActivity : Activity() {
             // without this a focused input can sit under the keyboard.
             val keyboard = insets.getInsets(WindowInsets.Type.ime()).bottom
 
-            // The cutout is folded in with the bars: on a device with a notch
-            // rather than a punch-hole, the status bar inset alone does not
-            // clear it in landscape.
-            val bars = if (config.fullscreen) {
-                Insets.NONE
-            } else {
-                insets.getInsets(
+            // Hiding the system bars does not move the camera. Full screen still
+            // holds the page clear of the cutout, because the alternative is the
+            // top of the site disappearing behind a lens — and unlike a status
+            // bar, there is no swipe that brings it back. The strip it leaves is
+            // filled by the root's theme colour, so it reads as part of the app
+            // rather than as a letterbox.
+            //
+            // The cutout is folded in with the bars in the other mode too: on a
+            // device with a notch rather than a punch-hole, the status bar inset
+            // alone does not clear it in landscape.
+            val bars = when {
+                !config.fullscreen -> insets.getInsets(
                     WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
                 )
+
+                // Opted into the lens: for a site whose top edge is empty, the
+                // extra strip is worth more than the content it could hide.
+                config.drawUnderCutout -> Insets.NONE
+
+                else -> insets.getInsets(WindowInsets.Type.displayCutout())
             }
 
             view.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, keyboard))
@@ -424,7 +474,15 @@ class MainActivity : Activity() {
         if (hasFocus) applySystemBars()
     }
 
-    /** Carries the site's own colour onto the bars and the recents tile. */
+    /**
+     * Carries the site's own colour onto the bars and the recents tile.
+     *
+     * The two bar-colour setters are no-ops from API 35, where the colour behind
+     * a bar is whatever the app draws there — which is why the root view carries
+     * the same colour. They are kept for API 30 to 34, where they are still what
+     * tints the bars.
+     */
+    @Suppress("DEPRECATION")
     private fun applyThemeColor() {
         val color = themeColor() ?: return
         window.statusBarColor = color

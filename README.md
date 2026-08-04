@@ -114,6 +114,12 @@ the bars stay put with the page held below them, tinted with the site's theme co
 There is no in-between state, because a page drawn under a *visible* status bar has a
 band across its top that looks live but sends every tap to the system instead.
 
+Hiding the bars does not move the camera, so a full-screen app still stops below the
+display cutout and fills that strip with the theme colour. *Draw under the camera
+cutout* gives the strip back to the page — worth it for a site whose top edge is empty,
+and not otherwise, since unlike a status bar there is no swipe that reveals what the
+lens covers.
+
 ## Domain rules
 
 Each site can carry its own allowlist or blocklist, applied to **every** request it
