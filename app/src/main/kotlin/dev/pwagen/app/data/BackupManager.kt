@@ -39,8 +39,18 @@ import java.util.zip.ZipOutputStream
  */
 class BackupManager(private val repository: PwaRepository) {
 
-    fun export(destination: OutputStream) {
+    /**
+     * Writes a bundle holding every web app, or only those named by
+     * [packageNames].
+     *
+     * A single web app is written in exactly the same container as the whole
+     * set — a one-element list — so there is one format to read and [import]
+     * needs no second path. It also means a bundle someone sends you can be
+     * taken apart and passed on one app at a time.
+     */
+    fun export(destination: OutputStream, packageNames: Set<String>? = null) {
         val entries = repository.load()
+            .filter { packageNames == null || it.packageName in packageNames }
 
         ZipOutputStream(destination).use { zip ->
             zip.putNextEntry(ZipEntry(CONFIG_ENTRY))
@@ -51,7 +61,9 @@ class BackupManager(private val repository: PwaRepository) {
             )
             zip.closeEntry()
 
+            val wanted = entries.map { it.packageName }.toSet()
             for ((packageName, png) in repository.allIcons()) {
+                if (packageName !in wanted) continue
                 zip.putNextEntry(ZipEntry("$ICONS_PREFIX$packageName.png"))
                 zip.write(png)
                 zip.closeEntry()
@@ -63,9 +75,12 @@ class BackupManager(private val repository: PwaRepository) {
      * Merges a bundle into the current set, replacing any web app whose package
      * name matches.
      *
-     * @return the number of definitions restored.
+     * The same call handles a whole-set backup and a single exported web app,
+     * since [export] writes both the same way.
+     *
+     * @return the definitions restored.
      */
-    fun import(source: InputStream): Int {
+    fun import(source: InputStream): List<PwaConfig> {
         var restored: List<PwaConfig> = emptyList()
         val icons = mutableMapOf<String, ByteArray>()
 
@@ -98,7 +113,7 @@ class BackupManager(private val repository: PwaRepository) {
         for ((packageName, png) in icons) {
             repository.saveIcon(packageName, png)
         }
-        return restored.size
+        return restored
     }
 
     private companion object {

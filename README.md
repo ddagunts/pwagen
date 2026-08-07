@@ -113,13 +113,19 @@ wanted.
 **Full screen.** On by default: the system bars are hidden and the site fills the
 display, with a swipe from the top edge bringing the status bar back. Turn it off and
 the bars stay put with the page held below them, tinted with the site's theme colour.
-There is no in-between state, because a page drawn under a *visible* status bar has a
+What is never on offer is a page drawn under a *visible* status bar: it would have a
 band across its top that looks live but sends every tap to the system instead.
+
+*Keep the status bar* is full screen with the clock, battery and signal left on
+screen — the navigation bar still goes, and the page is held below the status bar
+rather than under it. Worth it for an app you watch for a while, where losing the time
+costs more than the strip is worth.
 
 Hiding the bars does not move the camera, so a full-screen app still stops below the
 display cutout and fills that strip with the theme colour. *Draw under the camera
 cutout* gives the strip back to the page. That is worth it for a site whose top edge is
 empty, and not otherwise: unlike a status bar, no swipe reveals what the lens covers.
+It does not apply when the status bar is kept, since that bar already covers the lens.
 
 ## Domain rules
 
@@ -153,6 +159,24 @@ its storage in Android Settings resets it.
 This sits *underneath* whatever per-app firewall you use rather than replacing it. A
 firewall sees the app's UID and can stop it reaching a host at all. These rules work
 inside the app, where the origin of each individual request is still known.
+
+### Start from an example
+
+The Add screen offers ready-made definitions that fill the whole form, editable
+afterwards like anything you typed yourself. **Wikipedia** is the one that ships:
+
+| | |
+|---|---|
+| Site | `https://en.m.wikipedia.org/` — the mobile host, so the first load is not redirected out of its own scope |
+| Permissions | none: no camera, microphone, location or notifications, so none appear in the generated manifest |
+| Safe Browsing | off, so no visited URL is reported to Google |
+| Domain rules | allowlist of `wikipedia.org`, `*.wikipedia.org`, `wikimedia.org`, `*.wikimedia.org` — article text comes from the first pair, every image and script from the second |
+| Announce blocked requests | on, so you can watch the allowlist work |
+
+Nothing else is reachable from it. For a reference app that is the point: there is no
+login to keep and no upload to make, so an outbound request anywhere else has nothing
+legitimate to be for. You still choose the icon yourself — the generator has no
+network access and cannot fetch one.
 
 ## Transport security
 
@@ -212,6 +236,13 @@ pwagen or switching install source.
 import the backup, pwagen mints a fresh key, and regenerates every app. Package names
 are derived deterministically from each site's host. A restored backup reproduces
 *identical* package names, so your firewall rules still apply by name.
+
+**One app at a time.** The ⤒ on a row writes that single web app — settings and icon —
+to its own file, and ⤓ in the top bar reads it back. A single app is written in the
+same container as a full backup, just holding one definition, so there is one format
+either way: import takes whichever you hand it, and anything whose package name
+already exists is replaced. That makes a hardened setup something you can pass to
+someone else without handing over the rest of your list.
 
 ## Requirements
 

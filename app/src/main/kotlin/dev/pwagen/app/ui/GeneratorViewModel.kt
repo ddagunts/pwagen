@@ -154,19 +154,36 @@ class GeneratorViewModel(application: Application) : AndroidViewModel(applicatio
 
     // ------------------------------------------------------------------ backups
 
-    fun exportBackup(destination: Uri) {
+    fun exportBackup(destination: Uri) = writeBundle(
+        destination,
+        packageNames = null,
+        success = "Backup saved. It contains your web apps and icons, not the signing key.",
+    )
+
+    /**
+     * Writes one web app to a file of its own — the same bundle format, holding
+     * a single definition — so a single app can be moved or handed on without
+     * carrying the rest of the list with it.
+     */
+    fun exportApp(destination: Uri, config: PwaConfig) = writeBundle(
+        destination,
+        packageNames = setOf(config.packageName),
+        success = "${config.label} exported, with its icon and settings.",
+    )
+
+    private fun writeBundle(destination: Uri, packageNames: Set<String>?, success: String) {
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     getApplication<Application>().contentResolver
                         .openOutputStream(destination)
-                        ?.use { backups.export(it) }
+                        ?.use { backups.export(it, packageNames) }
                         ?: error("Could not open $destination for writing")
                 }
             }.onSuccess {
-                show(Message("Backup saved. It contains your web apps and icons, not the signing key."))
+                show(Message(success))
             }.onFailure {
-                show(Message(it.message ?: "Backup failed", isError = true))
+                show(Message(it.message ?: "Export failed", isError = true))
             }
         }
     }
@@ -180,9 +197,21 @@ class GeneratorViewModel(application: Application) : AndroidViewModel(applicatio
                         ?.use { backups.import(it) }
                         ?: error("Could not open $source for reading")
                 }
-            }.onSuccess { count ->
+            }.onSuccess { restored ->
                 refresh()
-                show(Message("Restored $count web app${if (count == 1) "" else "s"}. Regenerate each to install."))
+                // A file holding one web app is the common case now that a
+                // single app can be exported, and naming it is worth more than
+                // a count of one.
+                show(
+                    Message(
+                        when (restored.size) {
+                            0 -> "Nothing in that file"
+                            1 -> "Imported ${restored.single().label}. Generate it to install."
+                            else -> "Imported ${restored.size} web apps. Generate each to install."
+                        },
+                        isError = restored.isEmpty(),
+                    ),
+                )
             }.onFailure {
                 show(Message(it.message ?: "Restore failed", isError = true))
             }

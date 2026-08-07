@@ -416,12 +416,19 @@ class MainActivity : Activity() {
             // filled by the root's theme colour, so it reads as part of the app
             // rather than as a letterbox.
             //
-            // The cutout is folded in with the bars in the other mode too: on a
+            // The cutout is folded in with the bars in the other modes too: on a
             // device with a notch rather than a punch-hole, the status bar inset
             // alone does not clear it in landscape.
             val bars = when {
                 !config.fullscreen -> insets.getInsets(
                     WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout(),
+                )
+
+                // Full screen with the clock kept: only the status bar is still
+                // on screen, so it is the only bar the page has to clear. The
+                // navigation bar is hidden and its strip belongs to the page.
+                config.keepStatusBar -> insets.getInsets(
+                    WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout(),
                 )
 
                 // Opted into the lens: for a site whose top edge is empty, the
@@ -449,7 +456,16 @@ class MainActivity : Activity() {
         val controller = window.insetsController ?: return
 
         if (config.fullscreen) {
-            controller.hide(WindowInsets.Type.systemBars())
+            // Keeping the status bar leaves the clock, battery and signal in
+            // place. The navigation bar goes either way: it is what full screen
+            // is mostly for, and the swipe below brings it back when needed.
+            controller.hide(
+                if (config.keepStatusBar) {
+                    WindowInsets.Type.navigationBars()
+                } else {
+                    WindowInsets.Type.systemBars()
+                },
+            )
             // A hidden bar has to stay reachable: a generated app is chromeless,
             // so the swipe is the only way back to the clock, notifications, and
             // on three-button devices the Back key.

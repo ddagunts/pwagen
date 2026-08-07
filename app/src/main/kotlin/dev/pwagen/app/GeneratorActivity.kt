@@ -34,6 +34,7 @@ import dev.pwagen.app.ui.GeneratorUiState
 import dev.pwagen.app.ui.GeneratorViewModel
 import dev.pwagen.app.ui.PwaEntry
 import dev.pwagen.app.ui.PwagenTheme
+import dev.pwagen.config.PwaConfig
 import dev.pwagen.app.ui.AppListScreen
 import dev.pwagen.app.ui.EditorScreen
 
@@ -77,6 +78,17 @@ private fun PwagenApp(viewModel: GeneratorViewModel = viewModel()) {
         ActivityResultContracts.CreateDocument("application/zip"),
     ) { uri -> uri?.let(viewModel::exportBackup) }
 
+    // Which web app the file picker was opened for. The picker only hands back
+    // a destination, so the subject has to be remembered across the round trip.
+    var exportingApp: PwaConfig? by remember { mutableStateOf(null) }
+
+    val exportApp = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        exportingApp?.let { config -> uri?.let { viewModel.exportApp(it, config) } }
+        exportingApp = null
+    }
+
     val importBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent(),
     ) { uri -> uri?.let(viewModel::importBackup) }
@@ -93,6 +105,10 @@ private fun PwagenApp(viewModel: GeneratorViewModel = viewModel()) {
                 destination = Destination.Editing(entry)
             },
             onGenerate = viewModel::generateAndInstall,
+            onExportApp = { entry ->
+                exportingApp = entry.config
+                exportApp.launch("${entry.config.packageName}.pwagen.zip")
+            },
             onExportBackup = { exportBackup.launch("pwagen-backup.zip") },
             onImportBackup = { importBackup.launch("application/zip") },
             onMessageShown = viewModel::dismissMessage,

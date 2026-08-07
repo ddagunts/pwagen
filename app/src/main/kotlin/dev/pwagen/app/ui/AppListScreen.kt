@@ -63,6 +63,7 @@ fun AppListScreen(
     onAdd: () -> Unit,
     onEdit: (PwaEntry) -> Unit,
     onGenerate: (PwaEntry) -> Unit,
+    onExportApp: (PwaEntry) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onMessageShown: () -> Unit,
@@ -119,6 +120,7 @@ fun AppListScreen(
                     busy = state.busyWith == entry.config.packageName,
                     onEdit = { onEdit(entry) },
                     onGenerate = { onGenerate(entry) },
+                    onExport = { onExportApp(entry) },
                 )
             }
         }
@@ -146,6 +148,7 @@ private fun PwaCard(
     busy: Boolean,
     onEdit: () -> Unit,
     onGenerate: () -> Unit,
+    onExport: () -> Unit,
 ) {
     Card(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -196,6 +199,12 @@ private fun PwaCard(
             if (busy) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
+                // The same glyph as the top bar's export, because it does the
+                // same thing to a smaller subject: one web app to a file, in
+                // the format the whole-set backup already uses.
+                IconButton(onClick = onExport) {
+                    Text("⤒", style = MaterialTheme.typography.titleLarge)
+                }
                 IconButton(onClick = onGenerate) {
                     Text("▶", style = MaterialTheme.typography.titleLarge)
                 }

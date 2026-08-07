@@ -169,18 +169,31 @@ data class PwaConfig(
      * Edge-to-edge is mandatory from API 35, so the window extends under the
      * status bar whatever this says. What it decides is who owns that strip:
      * true hides the bars so the page can use it, false holds the page below
-     * them. There is no third option, because leaving the page under a visible
-     * status bar puts a band of the site where taps reach the system instead.
+     * them. What is never offered is the page drawn under a *visible* bar,
+     * which would put a band of the site where taps reach the system instead —
+     * see [keepStatusBar], which keeps the bar and the page's clearance both.
      */
     val fullscreen: Boolean = true,
 
     /**
+     * Whether a full-screen app keeps the status bar on screen.
+     *
+     * Only consulted when [fullscreen] is set. The navigation bar still goes,
+     * and the page still gets everything below the clock, so this is full
+     * screen minus the one thing people miss: the time, the battery, and the
+     * signal strength. The page is held clear of the bar exactly as it is when
+     * [fullscreen] is off, so nothing of the site ends up under it.
+     */
+    val keepStatusBar: Boolean = false,
+
+    /**
      * Whether a full-screen app may also draw into the display cutout.
      *
-     * Only consulted when [fullscreen] is set, and off by default: hiding the
-     * system bars does not move the camera, so content left in that strip sits
-     * behind the lens with no swipe to recover it. Worth turning on for a site
-     * whose top edge is empty anyway, and for nothing else.
+     * Only consulted when [fullscreen] is set without [keepStatusBar], which
+     * already leaves a bar over the lens. Off by default: hiding the system
+     * bars does not move the camera, so content left in that strip sits behind
+     * the lens with no swipe to recover it. Worth turning on for a site whose
+     * top edge is empty anyway, and for nothing else.
      */
     val drawUnderCutout: Boolean = false,
 

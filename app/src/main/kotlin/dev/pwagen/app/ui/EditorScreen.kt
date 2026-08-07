@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import dev.pwagen.app.data.Examples
 import dev.pwagen.config.Capabilities
 import dev.pwagen.config.DomainRuleMode
 import dev.pwagen.config.DomainRules
@@ -84,6 +86,9 @@ fun EditorScreen(
     var discriminator by remember { mutableStateOf("") }
     var themeColor by remember { mutableStateOf(initial?.config?.themeColor ?: "#101010") }
     var fullscreen by remember { mutableStateOf(initial?.config?.fullscreen ?: true) }
+    var keepStatusBar by remember {
+        mutableStateOf(initial?.config?.keepStatusBar ?: false)
+    }
     var drawUnderCutout by remember {
         mutableStateOf(initial?.config?.drawUnderCutout ?: false)
     }
@@ -138,6 +143,38 @@ fun EditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Only offered while adding: on an existing app this would quietly
+            // throw away settings that are already installed on the device.
+            if (initial == null) {
+                Section(
+                    "Start from an example",
+                    "Fills the whole form. Everything stays editable afterwards.",
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (example in Examples.ALL) {
+                        AssistChip(
+                            onClick = {
+                                url = example.url
+                                label = example.label
+                                themeColor = example.themeColor
+                                capabilities = example.capabilities
+                                network = example.network
+                                offScope = example.offScopePolicy
+                                ruleMode = example.domainRules.mode
+                                patterns = example.domainRules.patterns.joinToString("\n")
+                                announceBlocks = example.domainRules.announceBlocks
+                            },
+                            label = { Text(example.label) },
+                        )
+                    }
+                }
+                Text(
+                    Examples.ALL.joinToString("\n") { "${it.label}: ${it.note}" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
@@ -198,13 +235,23 @@ fun EditorScreen(
                 "Full screen",
                 fullscreen,
                 detail = if (fullscreen) {
-                    "The status bar is hidden and the site uses the whole screen. Swipe from the top edge to bring the bar back."
+                    "The system bars are hidden and the site uses the whole screen. Swipe from the top edge to bring the status bar back."
                 } else {
                     "The status bar stays visible and the site starts below it, so nothing on the page sits under it."
                 },
             ) { fullscreen = it }
 
             if (fullscreen) {
+                CapabilityToggle(
+                    "Keep the status bar",
+                    keepStatusBar,
+                    detail = "Leaves the clock, battery and signal strength on " +
+                        "screen. The navigation bar still goes, and the site is " +
+                        "held below the status bar rather than under it.",
+                ) { keepStatusBar = it }
+            }
+
+            if (fullscreen && !keepStatusBar) {
                 CapabilityToggle(
                     "Draw under the camera cutout",
                     drawUnderCutout,
@@ -383,6 +430,7 @@ fun EditorScreen(
                             offScopePolicy = offScope,
                             themeColor = themeColor.trim(),
                             fullscreen = fullscreen,
+                            keepStatusBar = keepStatusBar,
                             drawUnderCutout = drawUnderCutout,
                             capabilities = capabilities,
                             network = network,

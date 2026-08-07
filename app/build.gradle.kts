@@ -101,8 +101,8 @@ android {
         applicationId = "dev.pwagen.app"
         minSdk = 30
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 6
+        versionName = "1.5"
     }
 
     // A local development key, gitignored, so test builds install and can be

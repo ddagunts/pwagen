@@ -3,9 +3,9 @@
     <!--
       Chromeless by design: no action bar, and the bars themselves are left
       transparent so MainActivity can decide at runtime what goes behind them.
-      Which it does depends on PwaConfig.fullscreen — either the page takes the
-      whole screen with the bars hidden, or the bars stay and the strip behind
-      them is filled with PwaConfig.themeColor. The light-bar flag below is only
+      Which it does depends on PwaConfig.fullscreen and keepStatusBar — the page
+      takes the whole screen with the bars hidden, or a bar stays and the strip
+      behind it is filled with PwaConfig.themeColor. The light-bar flag below is only
       the starting point; MainActivity overrides it from the theme colour's
       luminance so the clock and battery stay legible.
     -->
